@@ -1,0 +1,14 @@
+1.
+Create folder
+Create venv
+Activate venv
+Install poetry
+Poetry init
+poetry add django
+poetry shell (optionally)
+django-admin
+
+django-admin startproject config .
+
+
+2.
