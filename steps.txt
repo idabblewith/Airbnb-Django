@@ -1,23 +1,52 @@
 1. Setup
-Create folder && cd in
-Create venv
-Activate venv
-Install poetry
-Poetry init
-poetry add django
-poetry shell (optionally)
-django-admin
+    Create folder && cd in
+    Create venv
+    Activate venv
+    Install poetry
+    Poetry init
+    poetry add django
+    poetry shell (optionally)
+    django-admin
 
-django-admin startproject config .
+    django-admin startproject config .
 
+-------------------------------------------------------------------------
 
 2-3. OOP & Django Basics
-py manage.py runserver
-    sb.sqlite3 created
-    nav to http://127.0.0.1:8000//admin
-    close 
-py manage.py migrate && py manage.py runserver
-py manage.py createsuperuser
-config > settings.py > change timezone and language of server 
+    py manage.py runserver
+        sb.sqlite3 created
+        nav to http://127.0.0.1:8000//admin
+        close 
+    py manage.py migrate && py manage.py runserver
+    py manage.py createsuperuser
+    config > settings.py > change timezone and language of server 
+
+-------------------------------------------------------------------------
 
 4. Django Apps
+    py manage.py startapp houses
+    houses > models > Create house models
+    config > settings > 
+        installed_apps = system_apps + custom_apps
+        add houses app to custom apps ("houses.apps.HousesConfig")
+    houses > admin > 
+        from .models import House
+        @admin.register(House)
+        class HouseAdmin(admin.ModelAdmin):
+            pass
+    killserver & py manage.py makemigrations & migrate & runserver
+    Add House > Save > Change __str__ of model so it no longer shows "object"
+        models >
+            def __str__(self):
+                return self.name
+    admin >
+        list_display = ["name", "price_per_night", "pets_allowed",]
+        list_filter = ["price_per_night", "pets_allowed",]
+        search_fields = ["address__startswith",]
+        
+-------------------------------------------------------------------------
+
+5. Users App
+    
+
+-------------------------------------------------------------------------
