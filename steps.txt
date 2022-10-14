@@ -1,5 +1,5 @@
-1.
-Create folder
+1. Setup
+Create folder && cd in
 Create venv
 Activate venv
 Install poetry
@@ -11,4 +11,13 @@ django-admin
 django-admin startproject config .
 
 
-2.
+2-3. OOP & Django Basics
+py manage.py runserver
+    sb.sqlite3 created
+    nav to http://127.0.0.1:8000//admin
+    close 
+py manage.py migrate && py manage.py runserver
+py manage.py createsuperuser
+config > settings.py > change timezone and language of server 
+
+4. Django Apps
