@@ -47,6 +47,78 @@
 -------------------------------------------------------------------------
 
 5. Users App
-    
+    py manage.py startapp users
+    config > settings > "users.apps.UsersConfig" add 
+    models > 
+        from django.contrib.auth.models import AbstractUser
+
+        class User(AbstractUser):
+            pass
+    config > settings > AUTH_USER_MODEL = "users.User"
+    Gut db and migrations files
+    py manage.py makemigrations
+    py manage.py migrate
+    py manage.py createsuperuser
+    admin >
+        from django.contrib.auth.admin import UserAdmin
+        from .models import UserModel
+
+        @admin.register(UserModel)
+        class CustomUserAdmin(UserAdmin):
+            pass
+    overwrite AbstractUser first and last names to be non-editable
+        first_name = models.CharField(
+            max_length=150,
+            editable=False,
+        )
+        last_name = models.CharField(
+            max_length=150,
+            editable=False,
+        )
+    do user model custom fields
+        defaults for is_host and name so existing users dont get error
+    add fieldsets/ fields to admin
+        fieldsets = (
+            ("Profile",
+                {
+                   "fields":("username","password","name","email","is_host"), 
+                },
+            ),
+            ("Permissions",
+                {
+                    "fields": (
+                        "is_active",
+                        "is_staff",
+                        "is_superuser",
+                        "groups",
+                        "user_permissions"
+                    ),
+                    "classes": ("collapse",),
+                },
+            ),
+            ("Important Dates",
+                {
+                    "fields":("last_login","date_joined"),
+                    "classes": ("collapse",),
+                },
+            ),
+        )
+        fields = ["email","password","name"]
+    visit http://127.0.0.1:8000/admin/users/user/1/change/
+    do list_display
+    add foreign key of user to house as owner
+        owner = models.ForeignKey(
+            "users.User",
+            on_delete=models.CASCADE, (SetNULL for payments - records u need to keep)
+        )
+    killserver gut db and migrations
+    uninstall houses from settings
+    delete houses app
+    makemigrations migrate createsuperuser runserver
+     
+-------------------------------------------------------------------------
+
+6. Models & Admin
+
 
 -------------------------------------------------------------------------
