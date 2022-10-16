@@ -120,5 +120,180 @@
 
 6. Models & Admin
 
+    poetry add Pillow
+
+    0. USER
+    users.models > 
+        class GenderChoices(models.TextChoices):
+            MALE = ("male", "Male")
+            FEMALE = ("female", "Female") 
+        class LanguageChoices(models.TextChoices):
+            EN = "en", "English"
+            JP = "jp", "Japanese"
+        class CurrencyChoices(models.TextChoices):
+            AUD = "aud", "Australian Dollar"
+            JPY = "jpy", "Japanese Yen"
+        profile_photo = models.ImageField(blank=True)
+        gender = models.CharField(max_length=10, choices=GenderChoices.choices,)
+        language = models.CharField(max_length=2, choices=LangaugeChoices.choices,)
+        currency = models.CharField(max_length=3, choices=CurrencyChoices.choices,)
+
+    py manage.py makemigrations && py manage.py migrate
+    py manage.py createsuperuser
+    py manage.py runserver
+    users.admin >
+        add to profile fieldset fields
+            "profile_photo",
+            "gender",
+            "language",
+            "currency",
+
+    1. ROOM
+    py manage.py startapp rooms
+    config > settings.py > "rooms.apps.RoomsConfig", <-- Customapp
+    rooms > models > Define Room model
+
+    2. MANY TO MANY
+    startapp common
+    settings -> "common.apps.CommonConfig",
+    Define abstract model CommonModel
+        class CommonModel(models.Model):
+            created_at = models.DateTimeField(auto_now_add=True)
+            updated_at = models.DateTimeField(auto_now=True)
+
+            class Meta:
+                abstract = True
+                
+    Define Amenity - 
+    py manage.py makemigrations
+    py manage.py migrate
+
+    3. room > admin > Room, Amenity Admin
+
+    4. Rooms Admin
+        list_display, list_filter, readonly_fields,
+
+    5. Experiences
+        py manage.py startapp experiences
+        install in settings
+        define experience and perk
+        py manage.py makemigrations && py manage.py migrate
+        admin > Experience & Perk Admin
+        Add str method to models
+    
+    6. Categories
+        py manage.py startapp categories
+        install in settings
+        define categories model - name & kind
+        add class Meta verbose_name_plural and str methods
+        add category field to experiences & rooms models set_null on delete, nullable and blankable
+        admin > CategoryAdmin
+
+    7. Reviews 
+        py manage.py startapp reviews
+        install in settings
+        define reviews model - user, room, experience, payload, rating
+        py manage.py makemigrations && migrate
+        admin > ReviewAdmin
+
+    8. Wishlists
+        py manage.py startapp wishlists
+        install in settings 
+        define model - 
+        py manage.py makemigrations && py manage.py migrate
+        admin > WishlistAdmin
+
+    9. Bookings
+        py manage.py startapp bookings
+        install in settings
+        define models -
+        py manage.py makemigrations && py manage.py migrate
+        admin
+
+    10. Medias
+        py manage.py startapp medias
+        install in settings 
+        define models - photo, video (use onetoone for video experience)
+        py manage.py makemigrations && py manage.py migrate
+        admin
+
+    11. Direct Messages
+        py manage.py startapp direct_messages
+        install in settings
+        define models - Room, Message
+        py manage.py makemigrations && py manage.py migrate
+        admin
+        dm apps > dmconfig > verbose_name = "Direct Messages"
+
+
 
 -------------------------------------------------------------------------
+
+7. ORM
+
+-------------------------------------------------------------------------
+
+8. POWER ADMIN
+
+-------------------------------------------------------------------------
+
+9. URLS & VIEWS
+
+-------------------------------------------------------------------------
+
+10. DJANGO REST FRAMEWORK
+
+-------------------------------------------------------------------------
+
+11. REST API
+
+-------------------------------------------------------------------------
+
+12. USERS API
+
+-------------------------------------------------------------------------
+
+13. CHECKPOINT
+
+-------------------------------------------------------------------------
+
+14. GRAPHQL API
+
+-------------------------------------------------------------------------
+
+15. AUTHENTICATION
+
+-------------------------------------------------------------------------
+
+16. API TESTING
+
+-------------------------------------------------------------------------
+
+17. FRONT-END SETUP
+
+-------------------------------------------------------------------------
+
+18. CHAKRA UI
+
+-------------------------------------------------------------------------
+
+19. REACT QUERY
+
+-------------------------------------------------------------------------
+
+20. AUTHENTICATION
+
+-------------------------------------------------------------------------
+
+21. UPLOAD ROOM
+
+-------------------------------------------------------------------------
+
+22. CALENDAR
+
+-------------------------------------------------------------------------
+
+23. DEPLOYMENT
+
+-------------------------------------------------------------------------
+
