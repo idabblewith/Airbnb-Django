@@ -366,7 +366,7 @@
 
     4. Custom Filters
         Ordering of filters matters
-        
+
         reviews > admin >
             class WordFilter(admin.SimpleListFilter):
                 title = "Filter by Words"
@@ -394,6 +394,106 @@
 -------------------------------------------------------------------------
 
 9. URLS & VIEWS
+
+    1. Views
+
+        rooms > views >
+            from django.http import HttpResponse
+
+            def say_hello(req):
+                return HttpResponse("hello")
+        config > urls >
+            from rooms import views as room_views
+
+            urlpatterns = [
+                path("rooms", room_views.say_hello)
+            ]
+
+    2. Include 
+
+        create urls.py for each app and import them in the config
+
+        config urls >
+            from django.contrib import admin
+            from django.urls import path, include
+
+
+            urlpatterns = [
+                path("admin/", admin.site.urls),
+                path("rooms/", include("rooms.urls")),
+            ]
+
+        rooms urls >
+
+            from . import views
+            from django.urls import path
+
+            urlpatterns = [
+                path("", views.say_hello),
+            ]
+
+
+    3. URL Arguments
+
+        rooms > views > 
+            from django.shortcuts import render
+            from django.http import HttpResponse
+
+
+            def see_one_room(req, room_id):
+                return HttpResponse(f"{room_id}")
+
+
+            def see_all_rooms(req):
+                return HttpResponse("All rooms")
+
+        rooms > urls >
+            from . import views
+            from django.urls import path
+
+            urlpatterns = [
+                path("", views.see_all_rooms),
+                path("<int:room_id>", views.see_one_room),
+            ]
+
+
+    4. render
+        NOT RECOMMENDED (FLASK/JINJA STYLE) - WILL USE REACT
+        in views 
+            return render(req, "all_rooms.html", {
+                "rooms": all_rooms
+            })
+    
+        create rooms > templates/all_rooms.html
+
+    5. Django Templates
+        in html Templates >
+            {{var}}
+
+        {% for room in rooms %}
+            <li>{{room.name}}
+                <a href="/rooms/{{room.pk}}>
+                    <br />
+                    {% for amenity in rooms.amenities %}
+                        <span>{{amenity.name}}</span>
+                    {% endfor %}
+                />
+            </li>
+        {% endfor %}
+
+    6. DoesNotExist
+
+        rooms > views >
+            try:
+                room = Room.objects.get(pk=room_id)
+                return HttpResponse(f"{room}")
+            except Room.DoesNotExist:
+                return render(req, "404.html")
+
+    7. Django v. React
+
+        NO MORE TEMPLATES :D
+        React for frontend
 
 -------------------------------------------------------------------------
 
