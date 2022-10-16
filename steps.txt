@@ -231,9 +231,96 @@
 
 7. ORM
 
+    1. Intro
+        py manage.py shell (python interactive console with apps installed)
+
+        READ
+        a = Room.objects.get(name="")
+        print(a.pk) 
+        print(a.owner.email) etc
+
+        UPDATE
+        a.price = 20
+        a.save()
+
+    2. filter, get, create, delete
+        Room.objects.all()
+        Room.objects.get(var=value) get a single record
+        Room.objects.filter(pets_allowed=True)
+        Room.objects.filter(price__gt=15) 
+            search greater or  less than or gt or equals/lt or equals gte lte
+            or name__startswith="Apt"
+
+        data = {
+            name = "Amenity from console",
+
+        }
+        am = Amenity.objects.create(data)
+
+        to_delete = Amenity.objects.get(pk=7)
+        to_delete.delete()
+
+    3. QuerySets
+        Room.objects.filter(pets_allowed=True).exclude(price__lte=15).filter(name__contains="poo")
+        or
+        Room.objects.filter(pets_allowed=True, name__contains="poo", price__gt=15)
+        .count()
+        .all()[:5]
+
+    4. Admin methods
+        __exact __iexact="beatles blog"
+        __contains="bob" icontains
+        __startswith __istartswith
+        __endswith __iendswith
+        __range
+        __date
+        __year __month time, hour
+        .exists()
+
+        add "total_amenities" to admin for room &
+            add to model def
+                def total_amenities(self):
+                    return self.amenities.count()
+            or
+            add to admin panel
+                def total_amenities(self, room):
+                    return room.amenities.count()
+
+    5. ForeignKey Filter & Reverse Accessors
+
+        Room.objects.filter(owner__username='tg')
+            owner__username__startswith etc.
+        or
+        (recommended out of two)
+        me = User.objects.get(pk=1)
+        me.room_set.all()
+        
+    6. Related Name related_name
+
+        Customise the name of reverse accessors
+
+        simply add 'related_name="[NAME OF MODEL]"' to each model with a foreign key
+        for room:
+            owner = models.ForeignKey(
+                "users.User",
+                on_delete=models.CASCADE,
+                related_name="rooms',
+            )
+        
+        now you can call the rooms for each user from the user model:
+            user.rooms.all()
+
+        change rooms, wishlists, reviews, medias, bookings, direct_messages, experiences models to add related_name
+            & migrate
+
+        SAME AS backref in flask
+
+    
 -------------------------------------------------------------------------
 
 8. POWER ADMIN
+
+    
 
 -------------------------------------------------------------------------
 

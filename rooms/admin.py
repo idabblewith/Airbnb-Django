@@ -9,6 +9,7 @@ class RoomAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "price",
+        "total_amenities",
         "kind",
         "owner",
     ]
