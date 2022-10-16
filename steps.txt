@@ -320,7 +320,76 @@
 
 8. POWER ADMIN
 
-    
+    1. Methods
+        rooms > models > 
+            def rating(self):
+                count = self.reviews.count()
+                if count == 0:
+                    return "No reviews"
+                else:
+                    total_rating = 0
+                    for review in self.reviews.all().values("rating"):   <---------OPTOMISATION RETURN ONLY CERTAIN VALUES with .values("var")
+                        total_rating += review["rating"]
+                    return round(total_rating / count, 2)
+
+        rooms > admin >
+            "reviews" in list_display
+        
+    2. Search fields
+        rooms > admin >
+            search_fields = [
+                "^name",
+                "=price",
+                "owner__username",
+            ]
+
+        ^ = startswith
+        = = exact
+        __var = search on foreignkey
+
+
+    3. Admin actions
+        rooms > admin >
+         at top:
+            @admin.action(description="Set all prices to zero")
+            def reset_prices(model_admin, request, queryset):
+                for room in rooms.all():
+                    room.price = 0
+                    room.save()
+
+            
+         add to roomadmin:
+            actions = [
+                reset_prices,
+            ]
+
+
+    4. Custom Filters
+        Ordering of filters matters
+        
+        reviews > admin >
+            class WordFilter(admin.SimpleListFilter):
+                title = "Filter by Words"
+                parameter_name = "potato"
+
+                def lookups(self, request, model_admin):
+                    return [
+                        ("good", "Good"),
+                        ("great", "Great"),
+                        ("awesome", "Awesome")
+                    ]
+
+                def queryset(self, request, queryset):
+                    return queryset
+                    # replace queryset with reviews in this case
+
+            list_filter = [
+                WordFilter,
+                "rating",
+                "user__is_host",
+                "room__category",
+                "room__pets_allowed",
+            ]
 
 -------------------------------------------------------------------------
 
