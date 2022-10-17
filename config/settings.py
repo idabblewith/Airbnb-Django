@@ -53,7 +53,9 @@ CUSTOM_APPS = [
     "direct_messages.apps.DirectMessagesConfig",
 ]
 
-INSTALLED_APPS = SYSTEM_APPS + CUSTOM_APPS
+THIRD_PARTY_APPS = ["rest_framework"]
+
+INSTALLED_APPS = SYSTEM_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
 AUTH_USER_MODEL = "users.User"
 
