@@ -795,19 +795,95 @@
 
 11. REST API
 
+    1. All Amenities & AmenityDetail
+
+
+    2. Perks & PerkDetail
+
+
+    3. Rooms
+
+    4. RoomDetail
+
+
+    5. Create Room
+
+    6. Room owner
+
+    7. Room Category
+
+    8. Room Amenities
+
+    9. Transactions
+
+    10. Delete Rooms
+
+    11. SerializerMethodField
+
+    12. Serializer Context
+
+    13. Reverse serializers
+
+    14. Pagination
+
+    15. File Uploads
+
+    16. Upload photo
+
+    17. permission_classes
+
+    18. Reviews 
+
+    19. Wishlists
+
+    20. Wishlist
+
+    21. is_liked
+
+    22. Bookings
+
+    23. Create a Booking
+
+    24. Validate Booking
+
+    25. Booking Completed
+
+
 
 
 -------------------------------------------------------------------------
 
 12. USERS API
 
+    1. User Profile
+
+    2. Create a User
+
+    3. Change password
+
+    4. Login and Logout
+
+
 -------------------------------------------------------------------------
 
 13. CHECKPOINT
 
+    Code Challenge: 
+        Build Experiences API
+
+        GET POST /experiences
+        GET PUT DELETE /experiences/1
+        GET /experiences/1/Perks
+        GET POST /perks [x]
+        GET PUT DELETE /perks/1 [x]
+        GET POST /experiences/1/bookings
+        GET PUT DELETE /experiences/1/bookings/2
+
 -------------------------------------------------------------------------
 
 14. GRAPHQL API
+    
+    WILL NOT USE BUT SEE BOTTOM FOR GRAPHQL 
 
 -------------------------------------------------------------------------
 
@@ -846,4 +922,472 @@
 23. DEPLOYMENT
 
 -------------------------------------------------------------------------
+
+
+
+
+
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+14 GRAPHQL
+
+    poetry add strawberry-graphql[debug-server]
+    poetry add strawberry-graphql-django
+    THIRD_PARTY_APPS >
+        "strawberry.django",
+
+    1. Query
+
+        DUMMY API
+         
+        python has typing
+            name:str = "bob"
+            def hello(person:str) -> str:
+                return f"hello {person}"
+
+        config > create schema.py
+            import strawberry
+
+            @strawberry.type
+            class Query:
+                @strawberry.field
+                def ping(self) -> str:
+                    return "pong"
+
+            schema = strawberry.Schema(query=Query)
+        
+        urls.py >
+            from strawberry.django.views import GraphQLView
+            from .schema import schema
+
+            path("graphql", GraphQLView.as_view(schema=schema)),
+
+
+        navigate to localhost:8000/graphql
+
+            {
+                ping
+            }
+
+            res: 
+                {
+                    "data": {
+                        "ping": "pong"
+                    }
+                }
+
+    2. Query Arguments
+        schema >
+            import strawberry
+            import typing
+
+
+            @strawberry.type
+            class Movie:
+                pk: int
+                title: str
+                year: int
+                rating: int
+
+
+            movies_db = [Movie(pk=1, title="The Godfather", year=1990, rating=10)]
+
+
+            @strawberry.type
+            class Query:
+                @strawberry.field
+                def movies(self) -> typing.List[Movie]:
+                    return movies_db
+
+                @strawberry.field
+                def movie(self, movie_pk: int) -> Movie:
+                    return movies_db[movie_pk - 1]
+
+
+            schema = strawberry.Schema(query=Query)
+
+
+        gql >
+            {
+                movie(moviePk:1){
+                    title
+                    year
+                    rating
+                }
+            }
+
+    3. Mutation
+
+        Add to bottom schema >
+            @strawberry.type
+            class Mutation:
+                @strawberry.mutation
+                def add_movie(self, title: str, year: int, rating: int) -> Movie:
+                    new_movie = Movie(
+                        pk=len(movies_db) + 1,
+                        title=title,
+                        year=year,
+                        rating=rating,
+                    )
+                    movies_db.append(new_movie)
+                    return new_movie
+
+
+            schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+
+        gql >
+            mutation {
+                addMovie(title:"Godfather II", year: 2000, rating: 8) {
+                    pk
+                    title
+                }
+            }
+
+    4. Refactor
+
+        Move queries/mutations
+
+        def movies():
+            return movies_db
+
+
+        def movie(movie_pk: int):
+            return movies_db[movie_pk - 1]
+
+
+        def add_movie(title: str, year: int, rating: int):
+            new_movie = Movie(
+                pk=len(movies_db) + 1,
+                title=title,
+                year=year,
+                rating=rating,
+            )
+            movies_db.append(new_movie)
+            return new_movie
+
+
+        @strawberry.type
+        class Query:
+            movies: typing.List[Movie] = strawberry.field(resolver=movies)
+            movie: Movie = strawberry.field(resolver=movie)
+
+
+        @strawberry.type
+        class Mutation:
+            add_movie: Movie = strawberry.mutation(resolver=add_movie)
+
+
+        schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+    5. Django Types
+        GUT
+        import strawberry
+
+        @strawberry.type
+        class Query:
+            pass
+
+        @strawberry.type
+        class Mutation:
+            pass
+
+        schema = strawberry.Schema(query=Query, mutation=Mutation)
+
+        rooms > types.py >
+            import strawberry
+            from strawberry import auto
+            from . import models
+
+
+            @strawberry.django.type(models.Room)
+            class Room:
+                id: auto
+                name: auto
+                kind: auto
+
+        rooms > schema.py >
+            import strawberry
+            import typing
+            from . import types
+            from . import queries
+
+            @strawberry.type
+            class Query:
+                all_rooms: typing.List[types.Room] = strawberry.field(
+                    resolver=queries.get_all_rooms
+                )
+
+        rooms > queries.py >
+            from . import models
+
+            def get_all_rooms():
+                return models.Room.objects.all()
+
+        config > schema.py >
+            import strawberry
+            from rooms import schema as rooms_schema
+
+
+            @strawberry.type
+            class Query(rooms_schema.Query):
+                pass
+
+
+            # @strawberry.type
+            # class Mutation:
+            #     pass
+
+
+            schema = strawberry.Schema(
+                query=Query,
+            )
+
+        gql > 
+            {
+                allRooms {
+                    id
+                    name
+                    kind
+                }
+            }
+
+
+    6. Type Relationships
+
+        users > types.py
+            import strawberry
+            from strawberry import auto
+            from . import models
+
+            @strawberry.django.type(models.User)
+            class UserType:
+                name: auto
+                email: auto
+                username: auto
+
+        
+        rooms > types.py 
+            import strawberry
+            from strawberry import auto
+            from . import models
+            from users.types import UserType
+
+            @strawberry.django.type(models.Room)
+            class Room:
+                id: auto
+                name: auto
+                kind: auto
+                owner: 'UserType'
+
+
+        gql > 
+            {
+                allRooms {
+                    id
+                    name
+                    kind
+                    owner {
+                        username
+                    }
+                }
+            }
+
+
+
+    7. Paginated Relationships
+
+        reviews > types.py >
+            import strawberry
+            from strawberry import auto
+            from . import models
+
+
+            @strawberry.django.type(models.Review)
+            class ReviewType:
+                id: auto
+                payload: auto
+                rating: auto
+
+        rooms > types >
+            add
+                import typing
+                from reviews.types import ReviewType
+                from django.conf import settings
+
+             &
+                @strawberry.field
+                def reviews(self, page: int) -> typing.List["ReviewType"]:
+                    page_size = settings.PAGE_SIZE
+                    start = (page - 1) * page_size
+                    end = start + page_size
+                    return self.reviews.all()[start:end]
+
+                @strawberry.field
+                def rating(self) -> str:
+                    return self.rating
+
+                
+        gql >
+            {
+                allRooms {
+                    id
+                    name
+                    kind
+                    owner {
+                    username
+                    }
+                    reviews(page:1){
+                        id
+                        payload
+                        rating
+                    }
+                }
+            }
+
+
+    8. Custom Resolvers
+
+        gql >
+            {
+                allRooms {
+                    name 
+                    isOwner
+                    isLiked
+                }
+            }
+
+
+            {
+                room(pk:1) {
+                    name
+                    rating
+                    reviews(page:1) {
+                        rating
+                        payload
+                    }
+                }
+            }
+
+
+        rooms > queries
+            from . import models
+
+
+            def get_all_rooms():
+                return models.Room.objects.all()
+
+
+            def get_room(pk: int):
+                try:
+                    return models.Room.objects.get(pk)
+                except models.Room.DoesNotExist:
+                    return None
+
+        rooms > schema
+            import strawberry
+            import typing
+            from . import types
+            from . import queries
+
+
+            @strawberry.type
+            class Query:
+                all_rooms: typing.List[types.RoomType] = strawberry.field(
+                    resolver=queries.get_all_rooms
+                )
+                room: typing.Optional[types.RoomType] = strawberry.field(resolver=queries.get_room)
+
+
+        rooms types 
+
+            import strawberry
+            from strawberry import auto
+            from strawberry.types import Info
+            from . import models
+            from users.types import UserType
+            import typing
+            from reviews.types import ReviewType
+            from django.conf import settings
+            from wishlists.models import Wishlist
+
+
+            @strawberry.django.type(models.Room)
+            class RoomType:
+                id: auto
+                name: auto
+                kind: auto
+                owner: "UserType"
+
+                @strawberry.field
+                def reviews(self, page: typing.Optional[int] = 1) -> typing.List["ReviewType"]:
+                    page_size = settings.PAGE_SIZE
+                    start = (page - 1) * page_size
+                    end = start + page_size
+                    return self.reviews.all()[start:end]
+
+                @strawberry.field
+                def rating(self) -> str:
+                    return self.rating
+
+                @strawberry.field
+                def is_owner(self, info: Info) -> bool:
+                    return self.owner == info.context.request.user
+
+                @strawberry.field
+                def is_liked(self, info: Info) -> bool:
+                    return Wishlist.objects.filter(
+                        user=info.context.request.user,
+                        rooms__pk=self.pk,
+                    ).exists()
+
+
+    9. Permissions 
+
+        NOPE
+        rooms/queries >
+            from strawberry.types import Info
+
+            def get_all_rooms(info: Info):
+                if info.context.request.user.is_authenticated:
+                    return models.Room.objects.all()
+                else:
+                    raise Exception("Not Auth.")
+
+        NOPE (as REPETITIVE) -> INSTEAD:
+
+        rooms/schema >
+            import strawberry
+            from . import types
+            from . import queries
+
+            import typing
+            from common.permissions import OnlyLoggedIn
+
+
+            @strawberry.type
+            class Query:
+                all_rooms: typing.List[types.RoomType] = strawberry.field(
+                    resolver=queries.get_all_rooms,
+                    permission_classes=[
+                        OnlyLoggedIn,
+                    ],
+                )
+                room: typing.Optional[types.RoomType] = strawberry.field(resolver=queries.get_room)
+
+
+        common/permissions >
+            from strawberry.permission import BasePermission
+            from strawberry.types import Info
+            import typing
+
+
+            class OnlyLoggedIn(BasePermission):
+
+                message = "You need to be logged in for this"
+
+                def has_permission(self, source: typing.Any, info: Info):
+                    return info.context.request.user.is_authenticated
 

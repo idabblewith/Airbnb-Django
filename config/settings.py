@@ -53,7 +53,10 @@ CUSTOM_APPS = [
     "direct_messages.apps.DirectMessagesConfig",
 ]
 
-THIRD_PARTY_APPS = ["rest_framework"]
+THIRD_PARTY_APPS = [
+    "rest_framework",
+    "strawberry.django",
+]
 
 INSTALLED_APPS = SYSTEM_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
