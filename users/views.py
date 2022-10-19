@@ -9,6 +9,8 @@ from django.contrib.auth import authenticate, login, logout
 
 from .models import User
 from . import serializers as user_ser
+import jwt
+from django.conf import settings
 
 
 class Me(APIView):
@@ -118,3 +120,26 @@ class Logout(APIView):
     def post(self, req):
         logout(req)
         return Response({"ok": "Bye"})
+
+
+class JWTLogin(APIView):
+    def post(self, req):
+        username = req.data.get("username")
+        password = req.data.get("password")
+        if not username or not password:
+            raise ParseError
+        user = authenticate(
+            req,
+            username=username,
+            password=password,
+        )
+        if user:
+            # Sign token (NO CONFIDENTIAL INFO)
+            token = jwt.encode(
+                {"pk": user.pk},
+                settings.SECRET_KEY,
+                algorithm="HS256",
+            )
+            return Response({"token": token})
+        else:
+            return Response({"error": "Wrong pass"})

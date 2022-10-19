@@ -11,16 +11,22 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+import environ
+
+env = environ.Env()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+print(os.path.join(BASE_DIR), ".env")
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-_z+l_c^978dai3r^vxih3ng0igt+uphym7p=mg)a_a6+2@!-ye"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -56,12 +62,21 @@ CUSTOM_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "strawberry.django",
+    "rest_framework.authtoken",
 ]
 
 INSTALLED_APPS = SYSTEM_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
 AUTH_USER_MODEL = "users.User"
 
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "config.authentication.TrustMeBroAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+        "config.authentication.JWTAuthentication",
+    ]
+}
 
 MEDIA_ROOT = "uploads"
 MEDIA_URL = "user-uploads/"

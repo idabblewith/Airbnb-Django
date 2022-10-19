@@ -2161,24 +2161,15 @@
 
 -------------------------------------------------------------------------
 
-13. CHECKPOINT
+13. CHECKPOINT - AFTER
 
-    Code Challenge: 
-        Build Experiences API
-
-        GET POST /experiences
-        GET PUT DELETE /experiences/1
-        GET /experiences/1/Perks
-        GET POST /perks [x]
-        GET PUT DELETE /perks/1 [x]
-        GET POST /experiences/1/bookings
-        GET PUT DELETE /experiences/1/bookings/2
+    SEE BOTTOM
 
 -------------------------------------------------------------------------
 
-14. GRAPHQL API
+14. GRAPHQL API - UNUSED
     
-    WILL NOT USE BUT SEE BOTTOM FOR GRAPHQL 
+    WILL NOT USE: SEE BOTTOM FOR GRAPHQL NOTES AND REASONING
 
 -------------------------------------------------------------------------
 
@@ -2186,17 +2177,235 @@
 
     0. Intro
 
+        Django auto uses Sessions (cookies)
+        However, we need token or JWT if we want to use mobile
+
+        the APIView code doesnt need to change, but the way 
+        that Django gets 'request.user' will
+
+        INSTALL POSTMAN - We will test here as requests could be sent 
+        from an ios or android app
+
     1. Customn Authentication 
+
+        conf/settings >
+            REST_FRAMEWORK = {
+                'DEFAULT_AUTHENTICATION_CLASSES': [
+                    'rest_framework.authentication.SessionAuthentication",
+                ]
+            }
+        THIS IS THE DEFAULT ^^
+
+        REST_FRAMEWORK = {
+            "DEFAULT_AUTHENTICATION_CLASSES": [
+                "rest_framework.authentication.SessionAuthentication",
+                "config.authentication.TrustMeBroAuthentication",
+            ]
+        }
+
+
+        conf > authentication.py >
+            # All authentication classes extend from this
+            from multiprocessing import AuthenticationError
+            from rest_framework.authentication import BaseAuthentication
+            from rest_framework.exceptions import AuthenticationFailed
+            from users.models import User
+
+            # dumbauth
+            class TrustMeBroAuthentication(BaseAuthentication):
+
+                # All auth classes will have this method
+                def authenticate(self, request):
+                    username = request.headers.get("Trust-Me")
+                    if not username:
+                        return None
+                    try:
+                        user = User.objects.get(username=username)
+                        return (user, None)
+                    except User.DoesNotExist:
+                        raise AuthenticationFailed(f"No user {username}")
 
     2. Recap 
 
+        REST_FRAMEWORK dictionary goes through each auth type and returns none 
+        if it doesnt work --> if none, goes to next auth method
+
+        """" 
+            return (user, None)
+        """
+
     3. Token Authentication 
+
+        NOT RECOMMENDED
+            rest_framework.authentication.SessionAuthentication 
+
+        TOKEN AUTHENTICATION
+
+            settings >
+                THIRD_PARTY_APPS = [
+                    ...
+                    "rest_framework.authtoken",
+                ]
+
+            
+                REST_FRAMEWORK = {
+                    ...
+                        rest_framework.authentication.TokenAuthentication
+                    ]
+                }
+
+            MIGRATE
+
+            users.urls >
+                from rest_framework.authtoken.views import obtain_auth_token
+                [
+                    ...
+                    path('token-login', obtain_auth_token)
+                ]
+            
+            in postman:
+                POST http://localhost:8000/api/v1/users/token-login
+                Body -> JSON:
+                    {
+                        "username":"tg",
+                        "password":"2"
+                    }
+                returns
+                    {
+                        "token": "ab48dd2e9d7eb5078c80ec66fe7df3156634d81f"
+                    }
+
+            to use token:
+                delete other headers
+                headers:
+                KEY: Authorization
+                Value: Token ab48dd2e9d7eb5078c80ec66fe7df3156634d81f
+                    
+                http://localhost:8000/api/v1/users/me GET works
+            RECOMMENDED FOR APPS WHERE YOU ONLY WANT ONE LOGIN (SESSION) PER USER
+            OR WANT MULTIPLE SESSIONS YOU CAN CONTROL 
+                PAID GAMING APPS FOR EXAMPLE
+                NETFLIX/INSTAGRAM - LIMIT SESSIONS/KICK SESSIONS & DEVICES
+                
+                THIS WILL COME WITH AN ADDED COST FOR MAINTAINING THE DB 
+                SO REDIS IS RECOMMENDED TO REDUCE THE COST OF A SEPARATE 
+                SESSIONS DATABASE
+
+                BREAKDOWN CAN BE FOUND HERE: 
+                https://www.youtube.com/watch?v=tosLBcAX1vk&ab_channel=%EB%85%B8%EB%A7%88%EB%93%9C%EC%BD%94%EB%8D%94NomadCoders
+
 
     4. JWT Encode
 
+        RECOMMENDED ALL OTHER CASES
+
+        poetry add pyjwt
+
+        users.urls >
+            path("jwt-login", views.JWTLogin.as_view()),
+
+        SEC KEY IS IN SETTINGS
+        # SECURITY WARNING: keep the secret key used in production secret!
+
+        users.views >
+            import jwt
+            from django.conf import settings
+
+            ...
+            class JWTLogin(APIView):
+                def post(self, req):
+                    username = req.data.get("username")
+                    password = req.data.get("password")
+                    if not username or not password:
+                        raise ParseError
+                    user = authenticate(
+                        req,
+                        username=username,
+                        password=password,
+                    )
+                    if user:
+                        # Sign token (NO CONFIDENTIAL INFO)
+                        token = jwt.encode(
+                            {"pk": user.pk},
+                            settings.SECRET_KEY,
+                            algorithm="HS256",
+                        )
+                        return Response({"token": token})
+                    else:
+                        return Response({"error": "Wrong pass"})
+
+
+        postman >
+            POST http://localhost:8000/api/v1/users/jwt-login
+            No headers
+
+            {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwayI6MX0.DAfJIukgOf_QwFk8r-wKToc-EJjwzzI3DObt1PEeFFM"
+            }
+
+
     5. JWT Decode
 
+        conf.auth >
+            ..
+            import jwt
+            from django.conf import settings
+
+            class JWTAuthentication(BaseAuthentication):
+                def authenticate(self, request):
+                    token = request.headers.get("Jwt")
+                    if not token:
+                        return None
+                    decoded = jwt.decode(
+                        token,
+                        settings.SECRET_KEY,
+                        algorithms="HS256",
+                    )
+                    pk = decoded.get("pk")
+                    if not pk:
+                        raise AuthenticationFailed("Invalid token")
+                    try:
+                        user = User.objects.get(pk=pk)
+                        return (user, None)
+                    except User.DoesNotExist:
+                        raise AuthenticationFailed("User not found")
+
+        add to settings >
+            "config.authentication.JWTAuthentication",
+
+
     6. Environment Files
+
+        poetry install django-environ
+
+        settings >
+            import os
+            import environ
+            env = environ.Env()
+
+            # Build paths inside the project like this: BASE_DIR / 'subdir'.
+            BASE_DIR = Path(__file__).resolve().parent.parent
+            environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+            
+            SECRET_KEY = env("SECRET_KEY")
+
+        .env >
+            SECRET_KEY="KEYHERE"
+
+            
+    BETTER TOKEN AUTH > DJANGO REST KNOX
+    https://www.django-rest-framework.org/api-guide/authentication/#django-rest-knox
+
+    without it tokens are stored unhashed on db (people with panel access can see)
+
+
+    BETTER JWT > SIMPLE JWT
+    https://django-rest-framework-simplejwt.readthedocs.io/en/latest/
+    
+    enables out of box:
+        blacklist tokens
+        expire tokens
+        set times for tokens to expire etc.
 
 -------------------------------------------------------------------------
 
@@ -2408,7 +2617,24 @@
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
-14 GRAPHQL - UNNECESSARY
+
+13.
+    Code Challenge: 
+        Build Experiences API
+
+        GET POST /experiences
+        GET PUT DELETE /experiences/1
+        GET /experiences/1/Perks
+        GET POST /perks [x]
+        GET PUT DELETE /perks/1 [x]
+        GET POST /experiences/1/bookings
+        GET PUT DELETE /experiences/1/bookings/2
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+
+14 GRAPHQL - POTENTIALLY UNNECESSARY AS NOT COMMONLY USED IN INDUSTRY
 
     poetry add strawberry-graphql[debug-server]
     poetry add strawberry-graphql-django
