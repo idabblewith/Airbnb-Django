@@ -2000,11 +2000,163 @@
 
     1. User Profile
 
+        conf.urls >
+            path("api/v1/users/", include("users.urls")),
+
+        user.urls >
+            from django.urls import path
+            from . import views
+
+            urlpatterns = [
+                path("me", views.Me.as_view()),
+            ]
+
+        models >
+            profile_photo = models.URLField(blank=True)
+        MIGRATE
+
+        models.serializers >
+
+            class PrivateUserSerializer(ModelSerializer):
+                class Meta:
+                    model = User
+                    exclude = [
+                        "password",
+                        "is_superuser",
+                        "id",
+                        "is_staff",
+                        "is_active",
+                        "first_name",
+                        "last_name",
+                        "groups",
+                        "user_permissions",
+                    ]
+
+        users.views >
+            class Me(APIView):
+                permission_classes = [IsAuthenticated]
+
+                def get(self, req):
+                    user = req.user
+                    return Response(
+                        user_ser.PrivateUserSerializer(user).data,
+                        status=status.HTTP_200_OK,
+                    )
+
+                def put(self, req):
+                    user = req.user
+                    ser = user_ser.PrivateUserSerializer(
+                        user,
+                        data=req.data,
+                        partial=True,
+                    )
+                    if ser.is_valid():
+                        user = ser.save()
+                        ser = user_ser.PrivateUserSerializer(user)
+                        return Response(
+                            ser.data,
+                            status=status.HTTP_202_ACCEPTED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+
     2. Create a User
+
+        views >
+            class Users(APIView):
+                def post(self, req):
+                    password = req.data.get("password")
+                    if not password:
+                        raise ParseError
+                    ser = user_ser.PrivateUserSerializer(data=req.data)
+                    if ser.is_valid():
+                        user = ser.save()
+                        user.set_password(password)
+                        user.save()
+                        ser = user_ser.PrivateUserSerializer(user)
+                        return Response(
+                            ser.data,
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
 
     3. Change password
 
+        urls >
+            urlpatterns = [
+                path("", views.Users.as_view()),
+                path("me", views.Me.as_view()),
+                path("change-password", views.ChangePassword.as_view()),
+                path("@<str:username>", views.PublicUser.as_view()),
+            ]
+
+        views >
+            class ChangePassword(APIView):
+                permission_classes = [IsAuthenticated]
+
+                def put(self, req):
+                    user = req.user
+                    old_pass = req.data.get("old_password")
+                    new_pass = req.data.get("new_password")
+                    if not old_pass or not new_pass:
+                        raise ParseError
+                    if user.check_password(old_pass):
+                        user.set_password(new_pass)
+                        user.save()
+                        return Response(status=status.HTTP_200_OK)
+                    else:
+                        raise ParseError
+
+
     4. Login and Logout
+
+        urls >
+            urlpatterns = [
+                path("", views.Users.as_view()),
+                path("me", views.Me.as_view()),
+                path("change-password", views.ChangePassword.as_view()),
+                path("log-in", views.Login.as_view()),
+                path("log-out", views.Logout.as_view()),
+                path("@<str:username>", views.PublicUser.as_view()),
+            ]
+
+
+        views >
+            from django.contrib.auth import authenticate, login, logout
+            
+            class Login(APIView):
+                def post(self, req):
+                    username = req.data.get("username")
+                    password = req.data.get("password")
+                    if not username or not password:
+                        raise ParseError
+                    user = authenticate(
+                        req,
+                        username=username,
+                        password=password,
+                    )
+                    if user:
+                        login(req, user)
+                        return Response({"ok": "welcome"})
+                    else:
+                        return Response({"error": "wrong password"})
+
+
+            class Logout(APIView):
+                permission_classes = [IsAuthenticated]
+
+                def post(self, req):
+                    logout(req)
+                    return Response({"ok": "Bye"})
 
 
 -------------------------------------------------------------------------

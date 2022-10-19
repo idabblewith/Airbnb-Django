@@ -29,4 +29,5 @@ urlpatterns = [
     path("api/v1/medias/", include("medias.urls")),
     path("api/v1/wishlists/", include("wishlists.urls")),
     # path("api/v1/bookings/", include("bookings.urls")), <-- no, done in rooms
+    path("api/v1/users/", include("users.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
