@@ -7,7 +7,7 @@ from common.models import CommonModel
 class Photo(CommonModel):
     """Def for Photos"""
 
-    file = models.ImageField()
+    file = models.URLField()
     description = models.CharField(max_length=100)
     room = models.ForeignKey(
         "rooms.Room",
@@ -31,7 +31,7 @@ class Photo(CommonModel):
 class Video(CommonModel):
     """Def for Videos"""
 
-    file = models.FileField()
+    file = models.URLField()
     experience = models.OneToOneField(
         "experiences.Experience",
         on_delete=models.CASCADE,

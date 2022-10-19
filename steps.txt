@@ -797,57 +797,1200 @@
 
     1. All Amenities & AmenityDetail
 
+        conf > urls >
+            urlpatterns = [
+                path("admin/", admin.site.urls),
+                path("graphql", GraphQLView.as_view(schema=schema)),
+                path("api/v1/rooms/", include("rooms.urls")),
+                path("api/v1/categories/", include("categories.urls")),
+            ]
+
+
+        rooms/views > 
+            from .models import Amenity
+            from .serializers import AmenitySerializer
+            from rest_framework.exceptions import NotFound
+            from rest_framework.views import APIView
+            from rest_framework.response import Response
+            from rest_framework.status import (
+                HTTP_200_OK,
+                HTTP_201_CREATED,
+                HTTP_202_ACCEPTED,
+                HTTP_204_NO_CONTENT,
+                HTTP_400_BAD_REQUEST,
+            )
+
+
+            class Amenities(APIView):
+                def get(self, req):
+                    all = Amenity.objects.all()
+                    ser = AmenitySerializer(all, many=True)
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+                def post(self, req):
+                    ser = AmenitySerializer(data=req.data)
+                    if ser.is_valid():
+                        a = ser.save()
+                        return Response(
+                            AmenitySerializer(a).data,
+                            status=HTTP_201_CREATED,
+                        )
+
+
+            class AmenityDetail(APIView):
+                def go(self, pk):
+                    try:
+                        return Amenity.objects.get(pk=pk)
+                    except Amenity.DoesNotExist:
+                        raise NotFound
+
+                def get(self, req, pk):
+                    a = self.go(pk)
+                    ser = AmenitySerializer(a)
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+                def delete(self, req, pk):
+                    a = self.go(pk)
+                    a.delete()
+                    return Response(
+                        status=HTTP_204_NO_CONTENT,
+                    )
+
+                def put(self, req, pk):
+                    a = self.go(pk)
+                    ser = AmenitySerializer(
+                        a,
+                        data=req.data,
+                        partial=True,
+                    )
+                    if ser.is_valid():
+                        ua = ser.save()
+                        return Response(
+                            AmenitySerializer(ua).data,
+                            status=HTTP_202_ACCEPTED,
+                        )
+                    else:
+                        return Response(
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+
+
+        rooms > urls >
+            from . import views
+            from django.urls import path
+
+            urlpatterns = [
+                path("amenities/", views.Amenities.as_view()),
+                path("amenities/<int:pk>/", views.AmenityDetail.as_view()),
+            ]
+
+
+
+        rooms/serializers >
+            from rest_framework.serializers import ModelSerializer
+            from .models import Amenity
+
+
+            class AmenitySerializer(ModelSerializer):
+                class Meta:
+                    model = Amenity
+                    fields = "__all__"
+
 
     2. Perks & PerkDetail
-
+        
+        above rinse/repeat
 
     3. Rooms
 
+        above rinse/repeat
+
+        Expand foreignkeys
+        NOTRECOMMENDED
+        serializer > RS > Meta
+            depth = 1
+        
+
     4. RoomDetail
+
+        keep database from overfetching (get all):
+
+        room/serializer >
+
+            class RoomListSerializer(ModelSerializer):
+                class Meta:
+                    model = Room
+                    fields = ["pk", "name", "country", "city", "price",]
+
+
+            class RoomDetailSerializer(ModelSerializer):
+
+                owner = TinyUserSerializer()
+                amenities = AmenitySerializer(many=True)
+                category = CategorySerializer()
+
+                class Meta:
+                    model = Room
+                    fields = "__all__"
+
+
+
+        users/serializer >
+            from rest_framework.serializers import ModelSerializer
+            from .models import User
+
+
+            class TinyUserSerializer(ModelSerializer):
+                class Meta:
+                    model = User
+                    fields = [
+                        "id",
+                        "username",
+                    ]
 
 
     5. Create Room
 
+        to prevent users from modifying the request to alter another
+        user's account, we make owner read only
+
+
+        class RoomDetailSerializer(ModelSerializer):
+
+            owner = TinyUserSerializer(read_only=True)
+            amenities = AmenitySerializer(many=True)
+            category = CategorySerializer()
+
+            class Meta:
+                model = Room
+                fields = "__all__"
+
+
     6. Room owner
+
+        views
+        class Rooms(APIView):
+            def get(self, req):
+                all = Room.objects.all()
+                ser = RoomListSerializer(
+                    all,
+                    many=True,
+                )
+                return Response(
+                    ser.data,
+                    status=HTTP_200_OK,
+                )
+
+            def post(self, req):
+                if req.user.is_authenticated:
+                    ser = RoomDetailSerializer(
+                        data=req.data,
+                    )
+                    if ser.is_valid():
+                        new = ser.save(owner=req.user)
+                        ser = RoomListSerializer(new)
+                        return Response(
+                            ser.data,
+                            status=HTTP_201_CREATED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+                else:
+                    raise NotAuthenticated
+
+        serializers
+        class RoomDetailSerializer(ModelSerializer):
+
+            owner = TinyUserSerializer(read_only=True)
+            amenities = AmenitySerializer(read_only=True, many=True)
+            category = CategorySerializer(read_only=True)
+
+            class Meta:
+                model = Room
+                fields = "__all__"
+
 
     7. Room Category
 
+        FOR TESTING
+        def create(self, validated_data):
+            print(validated_data)
+            return
+        END FOR TESTING
+
+        def post(self, req):
+            if req.user.is_authenticated:
+                ser = RoomDetailSerializer(
+                    data=req.data,
+                )
+                if ser.is_valid():
+                    category_pk = req.data.get("category")
+                    if not category_pk:
+                        raise ParseError
+                    try:
+                        category = Category.objects.get(pk=category_pk)
+                        if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                            raise ParseError
+                    except Category.DoesNotExist:
+                        raise ParseError
+                    new_room = ser.save(owner=req.user)
+                    ser = RoomListSerializer(new_room)
+                    return Response(
+                        ser.data,
+                        status=HTTP_201_CREATED,
+                    )
+                else:
+                    return Response(
+                        ser.errors,
+                        status=HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                raise NotAuthenticated
+
     8. Room Amenities
+
+        def post(self, req):
+            if req.user.is_authenticated:
+                ser = RoomDetailSerializer(
+                    data=req.data,
+                )
+                if ser.is_valid():
+                    category_pk = req.data.get("category")
+                    if not category_pk:
+                        raise ParseError("Category is required")
+                    try:
+                        category = Category.objects.get(pk=category_pk)
+                        if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                            raise ParseError("Category kind should be rooms")
+                    except Category.DoesNotExist:
+                        raise ParseError("Category not found!")
+                    new_room = ser.save(owner=req.user, category=category)
+                    amenities = req.data.get("amenities")
+                    for ame_pk in amenities:
+                        try:
+                            amenity = Amenity.objects.get(pk=ame_pk)
+                        except Amenity.DoesNotExist:
+                            new_room.delete()
+                            raise ParseError(f"Amenity with ID {ame_pk} Does not Exist")
+                        new_room.amenities.add(amenity)
+                    ser = RoomListSerializer(new_room)
+                    return Response(
+                        ser.data,
+                        status=HTTP_201_CREATED,
+                    )
+                else:
+                    return Response(
+                        ser.errors,
+                        status=HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                raise NotAuthenticated
+
 
     9. Transactions
 
+        All to succeed or none to succeed
+        all or nothing bby
+        Way of rolling back
+
+        from django,db import transactions
+
+        with transactions.atomic():
+            CODE HERE
+
+        views >
+            def post(self, req):
+                if req.user.is_authenticated:
+                    ser = RoomDetailSerializer(
+                        data=req.data,
+                    )
+                    if ser.is_valid():
+                        category_pk = req.data.get("category")
+                        if not category_pk:
+                            raise ParseError("Category is required")
+                        try:
+                            category = Category.objects.get(pk=category_pk)
+                            if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                                raise ParseError("Category kind should be rooms")
+                        except Category.DoesNotExist:
+                            raise ParseError("Category not found!")
+                        try:
+                            with transaction.atomic():
+                                new_room = ser.save(
+                                    owner=req.user,
+                                    category=category,
+                                )
+                                amenities = req.data.get("amenities")
+                                for ame_pk in amenities:
+                                    amenity = Amenity.objects.get(pk=ame_pk)
+                                    new_room.amenities.add(amenity)
+                                ser = RoomListSerializer(new_room)
+                                return Response(
+                                    ser.data,
+                                    status=HTTP_201_CREATED,
+                                )
+                        except Exception:
+                            raise ParseError("Amenity not found")
+
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+                else:
+                    raise NotAuthenticated
+
     10. Delete Rooms
+
+
+        views >
+        class RoomDetail(APIView):
+            def go(self, pk):
+                try:
+                    obj = Room.objects.get(pk=pk)
+                except Room.DoesNotExist:
+                    raise NotFound
+                return obj
+
+            def get(self, req, pk):
+                obj = self.go(pk)
+                ser = RoomDetailSerializer(obj)
+                return Response(
+                    ser.data,
+                    status=HTTP_200_OK,
+                )
+
+            def delete(self, req, pk):
+                room = self.go(pk)
+                if not req.user.is_authenticated:
+                    raise NotAuthenticated
+                if room.owner != req.user:
+                    raise PermissionDenied
+                room.delete()
+                return Response(
+                    status=HTTP_204_NO_CONTENT,
+                )
+
+            def put(self, req, pk):
+                room = self.go(pk)
+                if not req.user.is_authenticated:
+                    raise NotAuthenticated
+                if room.owner != req.user:
+                    raise PermissionDenied
+                ser = RoomDetailSerializer(
+                    room,
+                    data=req.data,
+                    partial=True,
+                )
+                if ser.is_valid():
+                    upd = ser.save()
+                    return Response(
+                        RoomDetailSerializer(upd).data,
+                        status=HTTP_202_ACCEPTED,
+                    )
+                else:
+                    return Response(
+                        ser.errors,
+                        status=HTTP_400_BAD_REQUEST,
+                    )
+
 
     11. SerializerMethodField
 
+        class RoomDetailSerializer(ModelSerializer):
+
+            owner = TinyUserSerializer(read_only=True)
+            amenities = AmenitySerializer(read_only=True, many=True)
+            category = CategorySerializer(read_only=True)
+
+            rating = serializers.SerializerMethodField()
+
+            class Meta:
+                model = Room
+                fields = "__all__"
+
+            def get_rating(self, room):
+                return room.rating()
+
+
     12. Serializer Context
+
+        def get(self, req, pk):
+            obj = self.go(pk)
+            ser = RoomDetailSerializer(
+                obj,
+                context={"request": req},
+            )
+            return Response(
+                ser.data,
+                status=HTTP_200_OK,
+            )
+
+
+        class RoomListSerializer(ModelSerializer):
+
+            rating = serializers.SerializerMethodField()
+            is_owner = serializers.SerializerMethodField()
+
+            class Meta:
+                model = Room
+                fields = [
+                    "pk",
+                    "name",
+                    "country",
+                    "city",
+                    "price",
+                    "rating",
+                    "is_owner",
+                ]
+
+            def get_is_owner(self, room):
+                req = self.context["request"]
+                return room.owner == req.user
+
+            def get_rating(self, room):
+                return room.rating()
 
     13. Reverse serializers
 
+        NOT RECOMMENDED
+
+        example: find reviews for a room:
+
+            room.reviews.all() -- related_name
+
+
+        reviews > serializers
+            from rest_framework import serializers
+            from .models import Review
+
+
+            class ReviewSerializer(serializers.ModelSerializer):
+                class Meta:
+                    model = Review
+                    fields = "__all__"
+
+
+        rooms > RoomDetailSerializer
+            reviews = ReviewSerializer(many=True, read_only=True)
+
+        NOT RECOMMENDED AS ONE ROOM CAN HAVE MILLIONS OF REVIEWS
+        PAGINATION IS RECOMMENDED
+
+
     14. Pagination
 
+
+
+        rooms / urls >
+            path("<int:pk>/reviews", views.RoomReviews.as_view()),
+
+        TESTING IN GET VIEWS
+        page = req.query_params.get('page', 1)
+        page = int(page)
+        <int:pk>/reviews?page=2
+
+
+        rooms / views >
+            class RoomReviews(APIView):
+                def go(self, pk):
+                    try:
+                        obj = Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+                    return obj
+
+                    def get(self, req, pk):
+                        try:
+                            page = req.query_params.get('page', 1)
+                            page = int(page)
+                        except ValueError:
+                            # If user sends asdbaishdgba as page
+                            page = 1
+                        page_size=10
+                        start = (page-1) * page_size
+                        end = start + page_size
+                        room = self.go(pk)
+                        ser = ReviewSerializer(
+                            room.reviews.all()[start:end],
+                            many=True,
+                        )
+                        return Response(
+                            ser.data,
+                            status=HTTP_200_OK,
+                        )
+
+        CREATED ROOMS / 1 / AMENITIES
+
+        room/serializer/RoomDetailSerializer >
+            # amenities = AmenitySerializer(read_only=True, many=True)
+
+
+        rooms/urls >
+            path("<int:pk>/amenities", views.RoomAmenities.as_view()),
+
+        rooms/views >
+            class RoomAmenities(APIView):
+                def go(self, pk):
+                    try:
+                        obj = Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+                    return obj
+
+                def get(self, req, pk):
+                    try:
+                        page = req.query_params.get("page", 1)
+                        page = int(page)
+                    except ValueError:
+                        # If user sends asdbaishdgba as page
+                        page = 1
+                    page_size = 10
+                    start = (page - 1) * page_size
+                    end = start + page_size
+                    room = self.go(pk)
+                    ser = AmenitySerializer(
+                        room.amenities.all()[start:end],
+                        many=True,
+                    )
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+
     15. File Uploads
+        rooms/urls >
+            path("<int:pk>/photos", views.RoomPhotos.as_view()),
+
+        rooms/views >
+            class RoomPhotos(APIView):
+                def post(self, req, pk):
+                    pass
+
+        config > settings > 
+            MEDIA_ROOT = "uploads"
+            MEDIA_URL = "user-uploads/"
+
+        config > urls >
+            from django.conf.urls.static import static
+            from django.conf import settings
+
+            urlpatterns = [
+                path("admin/", admin.site.urls),
+                path("graphql", GraphQLView.as_view(schema=schema)),
+                path("api/v1/rooms/", include("rooms.urls")),
+                path("api/v1/categories/", include("categories.urls")),
+                path("api/v1/experiences/", include("experiences.urls")),
+            ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+        rooms/views >
+            from django.conf import settings
+            page_size = settings.PAGE_SIZE
+
+
+        http://localhost:8000/user-uploads/5b2ec3d72d2404f4700774c1db9203d8.png
+
+        NOT RECOMMENDED FOR PRODUCTION DUE TO SECURITY CONCERNS
+        UPLOADING IMAGES/CODE NEXT TO YOUR CODE
 
     16. Upload photo
 
+        WILL PUT UPLOADS ON ANOTHER SERVER (CF SERVER)
+
+        change from file to urls field
+        medias/models >
+        class Photo(CommonModel):
+            """Def for Photos"""
+
+            file = models.URLField()
+
+        class Video(CommonModel):
+            """Def for Videos"""
+
+            file = models.URLField()
+
+        kill & makemigrations && migrate
+
+        medias > serializers.py >
+            from rest_framework.serializers import ModelSerializer
+            from .models import Photo
+
+
+            class PhotoSerializer(ModelSerializer):
+                class Meta:
+                    model = Photo
+                    fields = [
+                        "pk",
+                        "file",
+                        "description",
+                    ]
+
+        rooms > views >
+            from medias.serializers import PhotoSerializer
+
+            class RoomPhotos(APIView):
+            # {
+            # "file":"http://localhost:8000/api/v1/rooms/2/photos",
+            # "description":"yoo"
+            # }
+
+            def go(self, pk):
+                try:
+                    room = Room.objects.get(pk=pk)
+                except Room.DoesNotExist:
+                    raise NotFound
+                return room
+
+            def post(self, req, pk):
+                room = self.go(pk)
+                if not req.user.is_authenticated:
+                    raise NotAuthenticated
+                if req.user != room.owner:
+                    raise PermissionDenied
+
+
+                ser = PhotoSerializer(
+                    data=req.data,
+                )
+                if ser.is_valid():
+                    photo = ser.save(room=room)
+                    ser = PhotoSerializer(photo)
+                    return Response(
+                        ser.data,
+                        status=HTTP_201_CREATED,
+                    )
+                else:
+                    return Response(
+                        ser.errors,
+                        status=HTTP_400_BAD_REQUEST,
+                    )
+
+        ENSURE LOGGED IN TO AVOID 403 anonymous user
+
     17. permission_classes
+
+        conf / urls.py >
+            path("api/v1/medias", include("medias.urls")),
+
+        
+        media / urls.py >
+            from django.urls import path
+            from . import views
+
+            urlpatterns = [
+                path("/photos/<int:pk>", views.PhotoDetail.as_view()),
+            ]
+
+        medias / views >
+            from rest_framework.views import APIView
+            from .models import Photo
+            from rest_framework.exceptions import NotFound
+
+            class PhotoDetail(APIView):
+                def go(self, pk):
+                    try:
+                        return Photo.objects.get(pk=pk)
+                    except Photo.DoesNotExist:
+                        raise NotFound
+
+                def delete(self, req, pk):
+                    photo = self.go(pk)
+                    
+        FOR DELETE, USER SHOULD BE AUTHED 
+        TO AVOID REPETITIVELY TYPING OUT STUFF LIKE BELOW IN EACH METHOD:
+            if (photo.room and photo.room.owner != req.user) or (
+                photo.experience and photo.experience.host != req.user
+            ):
+                raise PermissionDenied
+
+        WE USE PERMISSION CLASSES FROM DRF:
+            ...
+            from rest_framework.permissions import IsAuthenticated
+
+            class PhotoDetail(APIView):
+                permission_classes = [IsAuthenticated]
+                ...
+        
+        THIS PROTECTS THE ENTIRE VIEW.
+        TO PROTECT SPECIFIC METHODS (post, delete but not get) - AS WITH ROOMS
+            from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
+            class RoomDetail(APIView):
+
+                permission_classes = [IsAuthenticatedOrReadOnly]
+
+                def go(self, pk):
+                    try:
+                        obj = Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+                    return obj
+
+                def get(self, req, pk):
+                    obj = self.go(pk)
+                    ser = RoomDetailSerializer(
+                        obj,
+                        context={"request": req},
+                    )
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+                def delete(self, req, pk):
+                    room = self.go(pk)
+                    if room.owner != req.user:
+                        raise PermissionDenied
+                    room.delete()
+                    return Response(
+                        status=HTTP_204_NO_CONTENT,
+                    )
+
+                def put(self, req, pk):
+                    room = self.go(pk)
+                    if room.owner != req.user:
+                        raise PermissionDenied
+                    ser = RoomDetailSerializer(
+                        room,
+                        data=req.data,
+                        partial=True,
+                    )
+                    if ser.is_valid():
+                        upd = ser.save()
+                        return Response(
+                            RoomDetailSerializer(upd).data,
+                            status=HTTP_202_ACCEPTED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
 
     18. Reviews 
 
+        rooms > serializers
+            from medias.serializers import PhotoSerializer
+
+            class RoomDetailSerializer(ModelSerializer):
+
+                owner = TinyUserSerializer(read_only=True)
+                # amenities = AmenitySerializer(read_only=True, many=True)
+                category = CategorySerializer(read_only=True)
+
+                rating = serializers.SerializerMethodField()
+                is_owner = serializers.SerializerMethodField()
+                # reviews = ReviewSerializer(many=True, read_only=True)
+                photos = PhotoSerializer(many=True, read_only=True)
+
+                class Meta:
+                    model = Room
+                    fields = "__all__"
+
+                def get_rating(self, room):
+                    return room.rating()
+
+                def get_is_owner(self, room):
+                    req = self.context["request"]
+                    return room.owner == req.user
+
+            class RoomListSerializer(ModelSerializer):
+
+                rating = serializers.SerializerMethodField()
+                is_owner = serializers.SerializerMethodField()
+
+                class Meta:
+                    model = Room
+                    fields = [
+                        "pk",
+                        "name",
+                        "country",
+                        "city",
+                        "price",
+                        "rating",
+                        "is_owner",
+                        "photos",
+                    ]
+
+                def get_is_owner(self, room):
+                    req = self.context["request"]
+                    return room.owner == req.user
+
+                def get_rating(self, room):
+                    return room.rating()
+
+        rooms/views >
+            class RoomReviews(APIView):
+
+                permission_classes = [IsAuthenticatedOrReadOnly]
+
+                def go(self, pk):
+                    try:
+                        obj = Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+                    return obj
+
+                def get(self, req, pk):
+                    try:
+                        page = req.query_params.get("page", 1)
+                        page = int(page)
+                    except ValueError:
+                        # If user sends asdbaishdgba as page
+                        page = 1
+                    page_size = settings.PAGE_SIZE
+                    start = (page - 1) * page_size
+                    end = start + page_size
+                    room = self.go(pk)
+                    ser = ReviewSerializer(
+                        room.reviews.all()[start:end],
+                        many=True,
+                    )
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+                def post(self, req, pk):
+                    ser = ReviewSerializer(data=req.data)
+                    if ser.is_valid():
+                        review = ser.save(
+                            user=req.user,
+                            room=self.go(pk),
+                        )
+                        ser = ReviewSerializer(review)
+                        return Response(
+                            ser.data,
+                            status=HTTP_201_CREATED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+
     19. Wishlists
+
+        config > urls >
+            path("api/v1/wishlists", include("wishlists.urls")),
+
+        wishlists > urls >
+            from django.urls import path
+            from . import views
+
+            urlpatterns = [
+                path("", views.Wishlists.as_view()),
+            ]
+
+
+        wishlists > serializers >
+            from rest_framework.serializers import ModelSerializer
+            from .models import Wishlist
+            from rooms.serializers import RoomListSerializer
+
+
+            class WishlistSerializer(ModelSerializer):
+                rooms = RoomListSerializer(many=True, read_only=True)
+
+                class Meta:
+                    model = Wishlist
+                    fields = [
+                        "name",
+                        "rooms",
+                    ]
+
+
+
+        wishlists > views >
+            from rest_framework.views import APIView
+            from rest_framework.response import Response
+            from rest_framework.permissions import IsAuthenticatedOrReadOnly
+            from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
+            from .models import Wishlist
+            from .serializers import WishlistSerializer
+
+
+            class Wishlists(APIView):
+                permission_classes = [IsAuthenticatedOrReadOnly]
+
+                def get(self, req):
+                    all_wishlists = Wishlist.objects.filter(user=req.user)
+                    ser = WishlistSerializer(
+                        all_wishlists,
+                        many=True,
+                        context={"request": req},
+                    )
+                    return Response(ser.data, status=HTTP_200_OK)
+
+                def post(self, req):
+                    ser = WishlistSerializer(data=req.data)
+                    if ser.is_valid():
+                        wl = ser.save(
+                            user=req.user,
+                        )
+                        ser = WishlistSerializer(wl)
+                        return Response(
+                            ser.data,
+                            status=HTTP_201_CREATED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
 
     20. Wishlist
 
+        wl/urls >
+            from django.urls import path
+            from . import views
+
+            urlpatterns = [
+                path("", views.Wishlists.as_view()),
+                path("<int:pk>", views.WishlistDetail.as_view()),
+                path("<int:pk>/rooms/<int:room_pk>", views.WishlistToggle.as_view()),
+            ]
+
+        wl/serializers >
+            class Meta:
+            model = Wishlist
+            fields = [
+                "pk",
+                "name",
+                "rooms",
+            ]
+
+        wl/views >
+        
+            class WishlistDetail(APIView):
+
+                permission_classes = [IsAuthenticated]
+
+                def go(self, pk, user):
+                    try:
+                        return Wishlist.objects.get(pk=pk, user=user)
+                    except Wishlist.DoesNotExist:
+                        raise NotFound
+
+                def get(self, req, pk):
+                    wl = self.go(pk, req.user)
+                    print(f"\n\n{wl}\n\n")
+                    ser = WishlistSerializer(
+                        wl,
+                        context={"request": req},
+                    )
+                    print(f"\n\n{ser}\n\n")
+
+                    print(f"\n\n{req.user}\n\n")
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+                def delete(self, req, pk):
+                    wl = self.go(pk, user=req.user)
+                    wl.delete()
+                    return Response(status=HTTP_204_NO_CONTENT)
+
+                def put(self, req, pk):
+                    wl = self.go(pk=pk, user=req.user)
+                    ser = WishlistSerializer(
+                        wl,
+                        data=req.data,
+                        partial=True,
+                    )
+                    if ser.is_valid():
+                        wl = ser.save()
+                        ser = WishlistSerializer(
+                            wl,
+                        )
+                        return Response(
+                            ser.data,
+                            status=HTTP_202_ACCEPTED,
+                        )
+                    else:
+                        return Response(
+                            ser.errors,
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+
+
+            class WishlistToggle(APIView):
+
+                permission_classes = [IsAuthenticated]
+
+                def go(self, pk, user):
+                    try:
+                        return Wishlist.objects.get(pk=pk, user=user)
+                    except Wishlist.DoesNotExist:
+                        raise NotFound
+
+                def get_room(self, pk):
+                    try:
+                        return Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+
+                def put(self, req, pk, room_pk):
+                    list = self.go(pk, req.user)
+                    room = self.get_room(room_pk)
+
+                    if list.rooms.filter(pk=room.pk).exists():
+                        list.rooms.remove(room)
+                    else:
+                        list.rooms.add(room)
+
+                    return Response(status=HTTP_202_ACCEPTED)
+
     21. is_liked
+
+        rooms/ser>RoomDetailSerializer>
+
+            is_liked = serializers.SerializerMethodField()
+
+            def get_is_liked(self, room):
+                req = self.context["request"]
+                return Wishlist.objects.filter(user=req.user, rooms__id=room.pk).exists()
 
     22. Bookings
 
+        IMPORT ORDER
+            import all from django
+            import all thirdparties (rf)
+            import locals (.models)
+            import others (rooms.models)
+
+
+        rooms / urls >
+            path("<int:pk>/bookings", views.RoomBookings.as_view()),
+
+
+        bookings.serializers >
+            from rest_framework import serializers
+
+            from .models import Booking
+
+
+            class PublicBookingSerializer(serializers.ModelSerializer):
+                class Meta:
+                    model = Booking
+                    fields = [
+                        "pk",
+                        "check_in",
+                        "check_out",
+                        "experience_time",
+                        "guests",
+                    ]
+
+        rooms.views >
+            class RoomBookings(APIView):
+                permission_classes = [IsAuthenticatedOrReadOnly]
+
+                def go(self, pk):
+                    try:
+                        return Room.objects.get(pk=pk)
+                    except Room.DoesNotExist:
+                        raise NotFound
+
+                def get(self, req, pk):
+                    room = self.go(pk)
+                    now = timezone.localtime(timezone.now()).date()
+                    bookings = Booking.objects.filter(
+                        room=room,
+                        kind=Booking.BookingKindChoices.ROOM,
+                        check_in__gt=now,
+                    )
+                    ser = PublicBookingSerializer(
+                        bookings,
+                        many=True,
+                        context={"request": req},
+                    )
+                    return Response(
+                        ser.data,
+                        status=HTTP_200_OK,
+                    )
+
+
     23. Create a Booking
+
+        ser >
+            class CreateRoomBookingSerializer(serializers.ModelSerializer):
+
+            check_in = serializers.DateField()
+            check_out = serializers.DateField()
+
+            class Meta:
+                model = Booking
+                fields = [
+                    "guests",
+                    "check_in",
+                    "check_out",
+                ]
+
+            def validate_check_in(self, value):
+                now = timezone.localtime(timezone.now()).date()
+                if now > value:
+                    raise serializers.ValidationError("Booking must be a future date!")
+                else:
+                    return value
+
+            def validate_check_out(self, value):
+                now = timezone.localtime(timezone.now()).date()
+                if now > value:
+                    raise serializers.ValidationError("Booking must be a future date!")
+                else:
+                    return value
 
     24. Validate Booking
 
+        ...ABOVE CODE
+
+        def validate(self, data):
+            if data["check_out"] <= data["check_in"]:
+                raise serializers.ValidationError(
+                    "Check In date should be before Check Out data"
+                )
+
+            if Booking.objects.filter(
+                check_in__lte=data["check_out"], check_out__gte=data["check_in"]
+            ).exists():
+                raise serializers.ValidationError(
+                    "A booking already exists between or on those dates"
+                )
+            return data
+
+
     25. Booking Completed
 
+        rooms.views >
+        def post(self, req, pk):
+            room = self.go(pk)
+            ser = CreateRoomBookingSerializer(data=req.data)
+            if ser.is_valid():
+                booking = ser.save(
+                    room=room,
+                    user=req.user,
+                    kind=Booking.BookingKindChoices.ROOM,
+                )
+                ser = PublicBookingSerializer(booking)
+                return Response(
+                    ser.data,
+                )
+            else:
+                return Response(
+                    ser.errors,
+                )
 
 
 
@@ -889,38 +2032,220 @@
 
 15. AUTHENTICATION
 
+    0. Intro
+
+    1. Customn Authentication 
+
+    2. Recap 
+
+    3. Token Authentication 
+
+    4. JWT Encode
+
+    5. JWT Decode
+
+    6. Environment Files
+
 -------------------------------------------------------------------------
 
 16. API TESTING
 
+
+    0. Intro
+
+    1. Our First Test 
+
+    2. Amentities Test
+
+    3. Create Amenitiy Test
+
+    4. Amenity Detail Test
+
+    5. Test Authentication
+
+
+-------------------------------------------------------------------------
 -------------------------------------------------------------------------
 
 17. FRONT-END SETUP
+
+    0. Introduction
+
+    1. Requirements
+
+    2. Setup
+
+    3. Router Setup
+
+    4. Not Found page
+
+    5. Chakra Tour
+
 
 -------------------------------------------------------------------------
 
 18. CHAKRA UI
 
+
+    1. Header
+
+    2. Login Modal
+
+    3. Signup Modal
+
+    4. Dark Mode
+
+    5. Rooms Grid
+
+    6. Responsive Design
+
+    7. Skeletons
+
+
 -------------------------------------------------------------------------
 
-19. REACT QUERY
+19. REACT QUERY / TANSTACK QUERY
+
+
+    1. Manual Fetching
+    
+    2. Recap
+
+    3. React Query / Tanstack
+
+    4. Axios
+
+    5. Room Detail
+
+    6. Devtools and Query Keys
+
+    7. Photos Grid
+
+    8. Reviews
+
+    9. Conclusion
 
 -------------------------------------------------------------------------
 
-20. AUTHENTICATION
+20. AUTHENTICATION (FRONTEND)
+
+    1. useUser
+
+
+    2. Credentials
+
+
+
+        2b RECAP
+
+    3. Log Out
+
+
+    4. CSRF
+
+
+    5. Github Login
+
+
+    6. Github Code
+
+
+    7. Access Token
+
+
+    8. Emails
+
+
+    9. Kakao Talk App
+
+
+    10. Kakao Talk Auth
+
+
+    11. Kakao Login
+
+
+    12. Login Form
+
+
+    13. React Hook Form
+
+
+    14. useMutation
+
+
+    15. Recap & Code Challenge 
 
 -------------------------------------------------------------------------
 
 21. UPLOAD ROOM
 
+    1. Protected Pages
+
+
+    2. Upload Form
+
+
+    3. Dynamic Form
+
+
+    4. register
+
+
+    5. Bugfix
+
+
+    6. Upload Form
+
+
+    7. One-Time Upload
+
+
+    8. File Upload
+
+
+    9. Final Mutation
+
+
+    10. Recap
+
 -------------------------------------------------------------------------
 
 22. CALENDAR
+
+
+    1. Calendar Component
+
+
+    2. Booking Dates
+
+
+    3. Checking Dates
+
+
+    4. Timezones
+
+
+    5. Code Challenge
 
 -------------------------------------------------------------------------
 
 23. DEPLOYMENT
 
+    1. Render Blueprint
+
+
+    2. Sentry
+
+
+    3. Custom Domain
+
+
+    4. Rewrites
+
+
+    5. Conclusions
+
 -------------------------------------------------------------------------
 
 
@@ -931,7 +2256,7 @@
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
-14 GRAPHQL
+14 GRAPHQL - UNNECESSARY
 
     poetry add strawberry-graphql[debug-server]
     poetry add strawberry-graphql-django

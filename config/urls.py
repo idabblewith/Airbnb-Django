@@ -17,10 +17,16 @@ from django.contrib import admin
 from django.urls import path, include
 from strawberry.django.views import GraphQLView
 from .schema import schema
+from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("rooms/", include("rooms.urls")),
-    path("categories/", include("categories.urls")),
     path("graphql", GraphQLView.as_view(schema=schema)),
-]
+    path("api/v1/rooms/", include("rooms.urls")),
+    path("api/v1/categories/", include("categories.urls")),
+    path("api/v1/experiences/", include("experiences.urls")),
+    path("api/v1/medias/", include("medias.urls")),
+    path("api/v1/wishlists/", include("wishlists.urls")),
+    # path("api/v1/bookings/", include("bookings.urls")), <-- no, done in rooms
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

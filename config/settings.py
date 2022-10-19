@@ -62,6 +62,11 @@ INSTALLED_APPS = SYSTEM_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
 AUTH_USER_MODEL = "users.User"
 
+
+MEDIA_ROOT = "uploads"
+MEDIA_URL = "user-uploads/"
+PAGE_SIZE = 10
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
