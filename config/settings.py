@@ -19,7 +19,6 @@ env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-print(os.path.join(BASE_DIR), ".env")
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
@@ -60,6 +59,7 @@ CUSTOM_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "corsheaders",
     "rest_framework",
     "strawberry.django",
     "rest_framework.authtoken",
@@ -72,9 +72,9 @@ AUTH_USER_MODEL = "users.User"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
-        "config.authentication.TrustMeBroAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
-        "config.authentication.JWTAuthentication",
+        # "config.authentication.TrustMeBroAuthentication",
+        # "rest_framework.authentication.TokenAuthentication",
+        # "config.authentication.JWTAuthentication",
     ]
 }
 
@@ -83,6 +83,7 @@ MEDIA_URL = "user-uploads/"
 PAGE_SIZE = 10
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -164,3 +165,13 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000"]
+
+GH_SECRET = env("GH_SECRET")

@@ -27,6 +27,8 @@ from bookings.models import Booking
 from bookings.serializers import PublicBookingSerializer, CreateRoomBookingSerializer
 from django.utils import timezone
 
+import time
+
 
 class Amenities(APIView):
     def get(self, req):
@@ -149,7 +151,7 @@ class Rooms(APIView):
 
 
 class RoomDetail(APIView):
-
+    # time.sleep(3)
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def go(self, pk):

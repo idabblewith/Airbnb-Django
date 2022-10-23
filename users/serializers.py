@@ -8,6 +8,7 @@ class TinyUserSerializer(ModelSerializer):
         fields = [
             "id",
             "username",
+            "profile_photo",
         ]
 
 
