@@ -31,13 +31,16 @@ class CreateRoomBookingSerializer(serializers.ModelSerializer):
             return value
 
     def validate(self, data):
+        room = self.context.get("room")
         if data["check_out"] <= data["check_in"]:
             raise serializers.ValidationError(
                 "Check In date should be before Check Out date"
             )
 
         if Booking.objects.filter(
-            check_in__lte=data["check_out"], check_out__gte=data["check_in"]
+            room=room,
+            check_in__lte=data["check_out"],
+            check_out__gte=data["check_in"],
         ).exists():
             raise serializers.ValidationError(
                 "A booking already exists between or on those dates"
