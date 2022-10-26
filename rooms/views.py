@@ -135,12 +135,16 @@ class Rooms(APIView):
                     for ame_pk in amenities:
                         amenity = Amenity.objects.get(pk=ame_pk)
                         new_room.amenities.add(amenity)
-                    ser = RoomListSerializer(new_room)
+                    ser = RoomDetailSerializer(
+                        new_room,
+                        context={"request": req},
+                    )
                     return Response(
                         ser.data,
                         status=HTTP_201_CREATED,
                     )
-            except Exception:
+            except Exception as e:
+                print(e)
                 raise ParseError("Amenity not found")
 
         else:

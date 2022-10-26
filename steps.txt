@@ -2783,6 +2783,20 @@
 
     1. Render Blueprint
 
+        render.com
+        sentry.io
+
+        poetry add 
+            dj-database-url 
+            psycopg2-binary
+            'whitenoise[brotli]'
+            gunicorn
+            sentry-sdk
+
+            POTENTIALLY 
+            "django==~4.0" (DOWNGRADE FOR RENDER - ISSUE WITH 4.1 for some reason)
+
+        poetry uninstall Pillow
 
     2. Sentry
 

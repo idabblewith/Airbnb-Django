@@ -36,6 +36,37 @@ class Categories(APIView):
             return Response(serializer.errors)
 
 
+class CategoryRoomKind(APIView):
+    def get(self, req):
+        all_cat = Category.objects.filter(
+            kind=Category.CategoryKindChoices.ROOMS,
+        )
+        serializer = CategorySerializer(
+            all_cat,
+            many=True,
+        )
+
+        return Response(
+            serializer.data,
+            status=HTTP_200_OK,
+        )
+
+
+class CategoryExperienceKind(APIView):
+    def get(self, req):
+        all_cat = Category.objects.filter(
+            kind=Category.CategoryKindChoices.EXPERIENCES,
+        )
+        serializer = CategorySerializer(
+            all_cat,
+            many=True,
+        )
+        return Response(
+            serializer.data,
+            status=HTTP_200_OK,
+        )
+
+
 class CategoryDetail(APIView):
     def get_obj(self, pk):
         try:

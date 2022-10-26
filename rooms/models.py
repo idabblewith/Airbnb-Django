@@ -46,6 +46,12 @@ class Room(CommonModel):
         blank=True,
         related_name="rooms",
     )
+    # SETUP medias.models.photo
+    # photos = models.ForeignKey(
+    #     "medias.Photo",
+    #     on_delete=models.SET_NULL,
+    #     related_name="photos",
+    # )
 
     def __str__(self):
         return self.name

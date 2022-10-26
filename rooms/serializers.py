@@ -26,13 +26,18 @@ from wishlists.models import Wishlist
 class AmenitySerializer(ModelSerializer):
     class Meta:
         model = Amenity
-        fields = ["name", "description"]
+        fields = [
+            "pk",
+            "name",
+            "description",
+        ]
 
 
 class RoomListSerializer(ModelSerializer):
 
     rating = serializers.SerializerMethodField()
     is_owner = serializers.SerializerMethodField()
+    photos = PhotoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Room
@@ -75,11 +80,17 @@ class RoomDetailSerializer(ModelSerializer):
         return room.rating()
 
     def get_is_owner(self, room):
-        req = self.context["request"]
-        return room.owner == req.user
+        req = self.context.get("request")
+        if req:
+            return room.owner == req.user
+        return False
 
     def get_is_liked(self, room):
-        req = self.context["request"]
-        if req.user.is_authenticated:
-            return Wishlist.objects.filter(user=req.user, rooms__id=room.pk).exists()
+        req = self.context.get("request")
+        if req:
+            if req.user.is_authenticated:
+                return Wishlist.objects.filter(
+                    user=req.user, rooms__id=room.pk
+                ).exists()
+            return False
         return False
